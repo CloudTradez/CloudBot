@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service & Commercial Software License Agreement | Cloud Bot</title>
+    <style>
+        :root {
+            --bg-color: #fafafa;
+            --container-bg: #ffffff;
+            --text-color: #1e293b;
+            --text-muted: #64748b;
+            --accent-color: #0f172a;
+            --accent-light: #f8fafc;
+            --border-color: #e2e8f0;
+            --danger-bg: #fff5f5;
+            --danger-border: #fca5a5;
+            --danger-text: #991b1b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: var(--container-bg);
+            padding: 50px 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+            border: 1px solid var(--border-color);
+        }
+
+        header {
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 24px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 20pt;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+
+        .meta {
+            font-size: 9pt;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        h2 {
+            font-size: 13pt;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 35px;
+            margin-bottom: 14px;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 10px;
+        }
+
+        h3 {
+            font-size: 11pt;
+            font-weight: 600;
+            color: #334155;
+            margin-top: 24px;
+            margin-bottom: 8px;
+        }
+
+        p {
+            font-size: 10.5pt;
+            margin-bottom: 14px;
+            color: #334155;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-bottom: 16px;
+            padding-left: 20px;
+        }
+
+        li {
+            font-size: 10.5pt;
+            margin-bottom: 6px;
+            color: #334155;
+        }
+
+        .alert-box {
+            background-color: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            color: var(--danger-text);
+            padding: 18px;
+            border-radius: 6px;
+            margin-bottom: 24px;
+            font-size: 10pt;
+        }
+
+        .alert-box strong {
+            display: block;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .callout {
+            background-color: var(--accent-light);
+            border-left: 4px solid var(--accent-color);
+            padding: 16px;
+            border-radius: 0 6px 6px 0;
+            margin-bottom: 24px;
+            font-size: 10pt;
+        }
+
+        .highlight {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 9pt;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 15px 5px;
+            }
+            .container {
+                padding: 25px 20px;
+            }
+            h1 {
+                font-size: 18pt;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Terms of Service & Commercial Software License Agreement</h1>
+        <div class="meta">Last Updated: July 2026</div>
+    </header>
+
+    <div class="callout">
+        <strong>IMPORTANT LEGAL NOTICE — AGREEMENT BY USE, ACCESS, OR INTERACTION:</strong>
+        YOU ARE NOT REQUIRED TO PHYSICALLY OR DIGITALLY SIGN THIS AGREEMENT. BY ACCESSING THIS WEBSITE, REGISTERING AN ACCOUNT, GENERATING AN API ACCESS OR ROUTING TOKEN, TOGGLING DATA CHANNELS, OR CONNECTING A THIRD-PARTY API AGGREGATOR OR WEBHOOK ENDPOINT (INCLUDING BUT NOT LIMITED TO TRADERSPOST), YOU EXPLICITLY, UNCONDITIONALLY, AND RETROACTIVELY AGREE TO BE BOUND BY EVERY PROVISION CONTAINED IN THIS TERMS OF SERVICE. IF YOU DO NOT AGREE, YOU HAVE NO RIGHT OR LICENSE TO USE THE SOFTWARE AND MUST IMMEDIATELY DISCONNECT ALL PIPELINES, ENDPOINTS, AND DATA CONNECTIONS.
+    </div>
+
+    <div class="alert-box">
+        <strong>Absolute Limitation of Liability & Zero Financial Responsibility:</strong>
+        Cloud Bot is strictly an automated information broadcast conduit and developer utility tool. The operator of Cloud Bot is not a registered financial advisor, fiduciary, broker-dealer, commodity trading advisor, or investment professional. By using this software license, you explicitly agree that the operator holds absolute zero responsibility, liability, or accountability for any financial transactions, real-world execution failures, broker-side ordering anomalies, or capital losses incurred in your personal accounts. You use this software data stream entirely at your own financial, legal, and technical risk.
+    </div>
+
+    <p>Welcome to <strong>Cloud Bot</strong> (the "Software" or "Service"). This document constitutes a binding, enforceable legal agreement between the operator of Cloud Bot (<span class="highlight">"Licensor"</span>) and you, the independent system end-user (<span class="highlight">"Licensee"</span> or <span class="highlight">"User"</span>). Deploying, testing, or consuming data strings distributed through this system framework constitutes immediate, irrevocable, and explicit consent to these terms.</p>
+
+    <h2>1. Technical Scope of Service: Automated Data Broadcast Utility</h2>
+    <p>Cloud Bot operates exclusively as an <strong>impersonal, mechanical technical data broadcast conduit and distribution infrastructure</strong>. The system architecture generates standardized, algorithmic telemetry signals from the Licensor's master analytical configurations. These raw data strings (JSON format) are processed via a cloud-based serverless container and concurrently fanned out (distributed) to the Licensee's self-provided third-party API aggregator endpoint (such as TradersPost).</p>
+    <ul>
+        <li><span class="highlight">Zero Custody & Zero Access:</span> The Licensor does not have custody of, cannot view, and never logs your private brokerage account details, account balances, available leverage, API secret access tokens, or live execution passwords.</li>
+        <li><span class="highlight">User-Side Integration:</span> The technical routing loop is structurally dependent on connection endpoints supplied solely by the User. No data string can impact an execution environment within your brokerage account without your explicit webhooks, credentials, and API links configured inside your destination platform (TradersPost). You maintain sole authority over execution sizes, risk settings, and broker pairings.</li>
+    </ul>
+
+    <h3>1.1 User-Driven Customization, Filtering & Distinct Channels</h3>
+    <p>The Service provides specific structural control interfaces allowing the User to tailor their incoming transmission loop. You retain total and absolute discretion over which signals enter your execution pipeline.</p>
+    <ul>
+        <li><span class="highlight">Granular Opt-In & Opt-Out:</span> You may choose at any time to subscribe to, opt-in to, or opt-out of individual broadcast channels, specific asset classes, or individual symbol triggers provided within the master feed list. All channels are unchecked and disabled by default upon account initialization.</li>
+        <li><span class="highlight">Discretionary Filtering:</span> The software pipeline will only route data payloads that align with your active filter selections. Modifications to your channel preferences, asset whitelists, or exclusion lists can be adjusted at your own discretion and are completely user-directed.</li>
+        <li><span class="highlight">Immediate Disconnection & Kill-Switch:</span> You maintain the unilateral right to completely disable the data stream or disconnect the webhooks entirely at any moment. All user-driven pipeline modifications take effect immediately. You are entirely responsible for deploying this infrastructure "kill-switch" during moments of high market volatility, platform lag, or personal risk reassessment.</li>
+    </ul>
+
+    <h3>1.2 Strict Intellectual Property & Proprietary Data Restrictions</h3>
+    <p>The raw text strings, JSON formatting protocols, and underlying algorithmic telemetry broadcast by Cloud Bot constitute the proprietary intellectual property and trade secrets of the Licensor. The Licensee is granted a restrictive, non-transferable, personal software license solely to route this data to their own personal execution endpoints. You are strictly prohibited from: (i) copying, reverse-engineering, decompiling, or attempting to derive the mathematical, technical indicator, or execution logic behind the signals; (ii) scraping, caching, or compiling the data stream for commercial use; and (iii) mirroring, redistributing, reselling, or sharing the webhook payloads to any third party, public chatroom, or secondary distribution channel. Any breach will result in immediate, non-refundable token revocation and legal action for intellectual property theft.</p>
+
+    <h2>2. Absolute Exclusion of Professional Services & Advisory Liability</h2>
+    <p>This automated software utility and data broadcast stream are published for general, completely impersonal technology tracking purposes only. The Licensor relies completely on the "Publisher's Exclusion" from registration under applicable securities laws, including the Investment Advisers Act of 1940 and CFTC regulations. The Service does not cater to or evaluate individual financial situations.</p>
+    <ul>
+        <li><span class="highlight">No Personalized Financial Advice:</span> The automated broadcast of technical code signals does not constitute individualized financial advice, market forecasting, or tailored allocation suggestions. While the software allows you to filter or toggle signal categories via Section 1.1, the underlying telemetry remains standardized, non-individualized, and uniform across those respective channels. The Licensor does not provide personalized recommendations based on your individual net worth, account balance, or financial profile.</li>
+        <li><span class="highlight">No Fiduciary Status:</span> The Licensor is not a financial adviser, registered investment professional, asset manager, or commodity trading advisor (CTA). No advisory or fiduciary duties exist or are created by your deployment of this developer script.</li>
+        <li><span class="highlight">User Capital Responsibility:</span> Trading financial instruments involves an immense risk of total capital loss. You are purely subscribing to a raw software data utility; any market entries, execution sizes, or risk configurations are exclusively your own choices.</li>
+    </ul>
+
+    <h3>2.1 Personal Capital Allocation Disclosure</h3>
+    <p>The operator of Cloud Bot actively deploys capital using the same mechanical, algorithmic configurations that generate this master telemetry feed. Positions may be held personally by the operator that match, oppose, or precede the data payloads distributed through this software utility. The existence of personal trading by the operator does not constitute an inducement, recommendation, or tailoring of trades for any user.</p>
+
+    <h2>3. Infrastructure Vulnerability & Technical Risk Absolution</h2>
+    <p>Cloud-based fan-out architectures are subject to structural network dropouts, multi-tiered latency, and third-party updates. <strong>You acknowledge that you are using an automated developer tool across an unpredictable web-stack and assume all execution risks.</strong></p>
+    <p>The Licensor is completely absolved of any and all liability or financial responsibility for missed executions, order delays, unexpected position sizes, or account errors stemming from:</p>
+    <ol>
+        <li><span class="highlight">Upstream Signal Failures:</span> Technical drops, parsing anomalies, or downtime within the analytical engine or alert trigger platform.</li>
+        <li><span class="highlight">Fan-Out Routing Infrastructure:</span> Edge container delays, concurrent connection timeouts, or server drops within Cloudflare's network distribution layer.</li>
+        <li><span class="highlight">Data Formatting Anomalies:</span> Corrupted, altered, or unreadable webhook strings generated or parsed by automated systems.</li>
+        <li><span class="highlight">Downstream Execution Failures:</span> API drops, severe execution slippage, account leverage blocks, margin liquidations, or broker rejection issues on TradersPost or connected brokerage endpoints.</li>
+    </ol>
+
+    <h3>3.1 Third-Party Software Dependencies & Enforced Protocol Changes</h3>
+    <p>Cloud Bot relies fundamentally on external services (including but not limited to TradingView, Cloudflare, and TradersPost) to function. If any third-party utility fundamentally alters its API documentation, enforces protocol changes, goes out of business, experiences localized server cluster faults, or restricts Cloud Bot's IP ranges, the system infrastructure may immediately degrade or terminate without notice. You agree that the Licensor holds absolutely zero responsibility or technical liability for losses occurring due to third-party structural disruptions.</p>
+
+    <h3>3.2 Specific Instrument, Leverage & High-Volatility Market Risk Acknowledgement</h3>
+    <p>The Licensee explicitly acknowledges that the telemetry data streams may reference highly speculative, leveraged, and volatile financial instruments, including but not limited to zero-days-to-expiration (0DTE) options, leveraged exchange-traded funds (such as 3x leveraged vehicles), and micro-futures contracts. These instruments are structurally subject to rapid, violent price swings, severe execution slippage, bid-ask spread expansion, and sudden liquidity vacuums. You acknowledge that you fully understand the mechanics of leverage and options decay, and accept that real-world deployment of these signals can result in the instantaneous loss of your entire account equity or result in a margin deficit liability with your broker. You represent that you possess the requisite technical sophistication to manage such high-risk data environments.</p>
+
+    <h2>4. Usage-Based Software Licensing Fees & High-Water Mark Telemetry</h2>
+    <p>As consideration for the digital software license granted to routing infrastructure access, the User agrees to settle a variable, usage-based software licensing fee calculated as <strong>10% of the positive net valuation gains</strong> logged by the telemetry stream data across a given billing cycle.</p>
+    
+    <h3>4.1 Non-Advisory Software License Fee Structure</h3>
+    <p>You explicitly agree that this billing mechanism is <strong>strictly a variable software license payment tier</strong> calculated via raw data metrics. It is not a performance fee, a success cut, or an investment management invoice, as the Licensor exercises absolute zero discretion, control, or human oversight over your capital pools. Fees must be settled independently via the designated external invoicing path; under no circumstances shall the Licensor maintain automated access to split, extract, or directly withdraw funds from your brokerage account balances.</p>
+
+    <h3>4.2 High-Water Mark ("HWM") Logic</h3>
+    <p>To keep usage billing equitable, calculations are assessed purely on an automated High-Water Mark format:</p>
+    <ul>
+        <li>The High-Water Mark represents the peak cumulative net positive output logged by the data stream telemetry since the account's initialization.</li>
+        <li>If the data tracking logs show a cumulative drawdown or system loss across a billing period, no usage fees will accrue or be billed in subsequent cycles until the data stream telemetry recovers completely and breaks through the previous HWM peak. The 10% fee applies solely to <em>net new telemetry gains</em> exceeding that peak.</li>
+        <li><span class="highlight">Signal Telemetry Basis:</span> Because Cloud Bot has absolute zero access to your actual live bank or broker account values, all HWM calculations are derived strictly from internal web-log telemetry. Variations caused by your real-world broker execution slippage, platform commission deductions, or manual trader entries are entirely your responsibility.</li>
+    </ul>
+    <p>Failure to settle usage-based software invoices within the defined billing period will result in immediate, automated revocation of your API routing tokens without liability for any active open market positions.</p>
+
+    <h2>5. Absolute Limitation of Liability & Indemnification</h2>
+    <p>To the maximum extent permitted under applicable law, the Licensor, its developer, and affiliates shall <strong>never be liable</strong> for any direct, indirect, accidental, special, punitive, or consequential financial damages, including trading deficits, loss of personal capital, computer security disruptions, malware infection impact, or system downtime arising from the use or distribution of this pipeline utility.</p>
+    <p><strong>Indemnification:</strong> You agree to defend, indemnify, and hold completely harmless the Licensor and its operators from any claims, legal proceedings, regulatory investigations, or financial demands (including all legal expenses and attorney fees) arising out of your software configurations, account actions, or deployment of the routing pipeline.</p>
+
+    <h2>6. Governing Law & Dispute Resolution</h2>
+    <p>These Terms shall be governed, interpreted, and enforced in accordance with the laws of the operator's primary jurisdiction, without giving effect to conflicts of law principles. Any legal proceeding or dispute resolution stemming from this software license agreement shall be handled exclusively within the designated local courts of the operator's primary jurisdiction.</p>
+
+    <h3>6.1 Mandatory Binding Arbitration & Class Action Waiver</h3>
+    <p>YOU AND THE LICENSOR AGREE THAT ANY AND ALL DISPUTES, CLAIMS, OR CONTROVERSIES ARISING OUT OF OR RELATING TO THIS SOFTWARE UTILITY, TELEMETRY DATA, OR AGREEMENT SHALL BE RESOLVED EXCLUSIVELY THROUGH FINAL AND BINDING INDIVIDUAL ARBITRATION, RATHER THAN IN A COURT OF LAW. YOU EXPLICITLY WAIVE YOUR RIGHT TO PARTICIPATE AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS, MASS, CONSOLIDATED, OR REPRESENTATIVE PROCEEDING. THE ARBITRATOR MAY NOT CONSOLIDATE MORE THAN ONE PERSON'S CLAIMS, AND MAY NOT OTHERWISE PRESIDE OVER ANY FORM OF A REPRESENTATIVE OR CLASS PROCEEDING.</p>
+
+    <h3>6.2 Severability & Entire Agreement</h3>
+    <p>If any single provision or section of this Agreement is found to be legally invalid, unlawful, or unenforceable by an official court of law, that specific clause shall be modified to the minimum extent necessary, and the entire remaining balance of the contract will continue in full legal force and effect. This document represents the absolute entire agreement between the user and the operator; no verbal explanations, chatroom messages, alert service reviews, or website marketing text can overwrite or contradict the baseline definitions set forth here.</p>
+
+    <footer>
+        &copy; 2026 Cloud Bot. Software provided strictly "as-is" without warranty or operational guarantee.
+    </footer>
+</div>
+
+</body>
+</html>
