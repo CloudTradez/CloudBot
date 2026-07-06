@@ -248,7 +248,14 @@
 
   function generate(){
     const subUuid = subFilter.value;
-    const rows = RAW_ROWS.filter(r => r['Strategy Subscription UUID'] === subUuid);
+    const rows = RAW_ROWS
+      .filter(r => r['Strategy Subscription UUID'] === subUuid)
+      .slice()
+      .sort((a, b) => {
+        const ca = a['Created At'] || '';
+        const cb = b['Created At'] || '';
+        return ca < cb ? -1 : ca > cb ? 1 : 0;
+      });
 
     const entryQueues = new Map();
     const didNotFill = [];
@@ -326,17 +333,18 @@
 
     const lines = [];
     lines.push(`**Cloud Bot Recap (${recapDateStr})**`);
-    trades.forEach(t => {
-      const emoji = t.pct < -0.005 ? ':large_red_square:' : ':large_green_square:';
+    trades.forEach((t, i) => {
+      const emoji = t.pct < -0.005 ? ':red_square:' : ':green_square:';
       let valStr;
       if (t.isFutures){
         valStr = Math.abs(t.pointDiff) < 0.005 ? 'BE' : `${t.pointDiff>0?'+':''}${t.pointDiff.toFixed(2)} pts`;
       } else {
         valStr = Math.abs(t.pct) < 0.005 ? 'BE' : `${t.pct>0?'+':''}${t.pct.toFixed(2)}%`;
       }
-      lines.push(`${emoji} ${contractDisplay(t.contract)} @ $${t.entryPrice.toFixed(2)} -> $${t.exitPrice.toFixed(2)} (${valStr})`);
+      lines.push(`${i+1}. ${emoji} ${contractDisplay(t.contract)} @ $${t.entryPrice.toFixed(2)} -> $${t.exitPrice.toFixed(2)} (${valStr})`);
     });
     if (didNotFill.length){
+      lines.push('');
       lines.push(`Did not fill: ${didNotFill.join(', ')}`);
     }
     lines.push(`Total Trades: ${trades.length} (${wins} W, ${losses} L)`);
