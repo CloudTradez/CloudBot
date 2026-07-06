@@ -76,7 +76,7 @@
   <div id="status"></div>
 
   <div id="mapCard">
-    <h2>Options</h2>
+    <h2>Options and Futures</h2>
 
     <label for="subFilter">Strategy subscription</label>
     <select id="subFilter"></select>
@@ -328,7 +328,7 @@
         } else if (norm(eo.status) === 'rejected' || norm(eo.status) === 'canceled'){
           if (!seenDNF.has(ticker)){ seenDNF.add(ticker); didNotFill.push(ticker); }
         }
-      } else if ((norm(action) === 'buy' || norm(action) === 'sell') && norm(row['Status']) === 'rejected'){
+      } else if ((norm(action) === 'buy' || norm(action) === 'sell' || norm(action) === 'reverse') && norm(row['Status']) === 'rejected'){
         if (!seenDNF.has(ticker)){ seenDNF.add(ticker); didNotFill.push(ticker); }
       }
 
@@ -345,7 +345,7 @@
           const pointDiff = isShort ? (entryPrice-exitPrice) : (exitPrice-entryPrice);
           const dollarDiff = isFutures ? pointDiff * FUTURES_MULTIPLIERS[root] : null;
           let pct = isShort ? ((entryPrice-exitPrice)/entryPrice)*100 : ((exitPrice-entryPrice)/entryPrice)*100;
-          if (isFinite(pct)){
+          if (isFinite(pct) && !(isFutures && exitPrice === 0)){
             const contract = isFutures ? { ticker: root, strike: null, type: null, isFutures: true } : parseContract(sym);
             trades.push({ contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures });
           }
@@ -389,8 +389,8 @@
       }
       lines.push(`${i+1}. ${emoji} ${contractDisplay(t.contract)} @ $${t.entryPrice.toFixed(2)} -> $${t.exitPrice.toFixed(2)} (${valStr})`);
     });
+    lines.push('');
     if (didNotFill.length){
-      lines.push('');
       lines.push(`Did not fill: ${didNotFill.join(', ')}`);
     }
     lines.push(`Total Trades: ${trades.length} (${wins} W, ${losses} L)`);
