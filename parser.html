@@ -255,19 +255,18 @@
     const exitPrice = est.price;
 
     const symbol  = op.symbol || xo.symbol;
-    const root = futuresRoot(symbol);
-    const isFutures = !!root;
-    const pv = parseFloat(op.pointValue);
-    const multiplier = isFinite(pv) ? pv : (root ? FUTURES_MULTIPLIERS[root] : null);
+    const assetClass = norm(op.assetClass);
+    const isFutures = assetClass === 'future' || assetClass === 'futures';
+    const multiplier = parseFloat(op.pointValue);   // $ per point, per contract
 
     const pointDiff  = isShort ? (entryPrice - exitPrice) : (exitPrice - entryPrice);
-    const dollarDiff = (isFutures && multiplier != null) ? pointDiff * multiplier : null;
+    const dollarDiff = (isFutures && isFinite(multiplier)) ? pointDiff * multiplier : null;
     const pct = isShort ? ((entryPrice - exitPrice) / entryPrice) * 100
                         : ((exitPrice - entryPrice) / entryPrice) * 100;
     if (!isFinite(pct) || (isFutures && exitPrice === 0)) return null;
 
     const contract = isFutures
-      ? { ticker: root, strike: null, type: null, isFutures: true }
+      ? { ticker: futuresTicker(symbol), strike: null, type: null, isFutures: true }
       : parseContract(symbol);
     const exitTime = (xo.filledAt) || (eq && eq.updatedAt) || row['Created At'];
 
@@ -339,20 +338,14 @@
     return { ticker: symbol, strike: null, type: null };
   }
 
-  const FUTURES_MULTIPLIERS = {
-    'ES':50,'MES':5,'NQ':20,'MNQ':2,'YM':5,'MYM':0.5,'RTY':50,'M2K':5,
-    'CL':1000,'MCL':100,'NG':10000,'MNG':1000,'QG':2500,'RB':42000,'HO':42000,
-    'GC':100,'MGC':10,'SI':5000,'SIL':1000,'HG':25000,'MHG':2500,'PL':50,'PA':100,
-    'ZB':1000,'ZN':1000,'ZF':1000,'ZT':2000,'UB':1000,
-    'ZC':50,'ZS':50,'ZW':50,'ZL':600,'ZM':100,'KE':50,
-    'BTC':5,'MBT':0.1,'ETH':50,'MET':0.1,'BRR':5
-  };
-
-  function futuresRoot(symbol){
-    if (!symbol) return null;
-    const m = symbol.match(/^([A-Z0-9]{1,4})[FGHJKMNQUVXZ]\d{4}$/);
-    const root = m ? m[1] : symbol;
-    return FUTURES_MULTIPLIERS.hasOwnProperty(root) ? root : null;
+  // Futures dollar P&L uses openPosition.pointValue directly, so no multiplier
+  // table is needed. This only cleans up the contract symbol for display, e.g.
+  // "ESZ2025" -> "ES", "/MNQH2026" -> "MNQ".
+  function futuresTicker(symbol){
+    if (!symbol) return symbol;
+    const s = symbol.replace(/^\//, '').trim();
+    const m = s.match(/^([A-Z0-9]{1,4})[FGHJKMNQUVXZ]\d{1,4}$/);
+    return m ? m[1] : s;
   }
 
   function money(v){
