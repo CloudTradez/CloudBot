@@ -463,9 +463,7 @@
       lines.push(`${i+1}. ${emoji} ${contractDisplay(t.contract)} @ $${t.entryPrice.toFixed(2)} -> $${t.exitPrice.toFixed(2)} (${valStr})`);
     });
     lines.push('');
-    if (didNotFill.length && !hasLive){
-      lines.push(`Did not fill: ${didNotFill.join(', ')}`);
-    }
+    // "Did not fill" line hidden for now (both live and paper).
     lines.push(`Total Trades: ${trades.length} (${wins} W, ${losses} L)`);
     if (pctTrades.length){
       lines.push(`Net Profit: **${net>0?'+':''}${net.toFixed(2)}%** (+${gainSum.toFixed(2)}% gain, ${lossSum.toFixed(2)}% loss)`);
