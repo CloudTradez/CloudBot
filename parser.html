@@ -395,7 +395,7 @@
     }
     lines.push(`Total Trades: ${trades.length} (${wins} W, ${losses} L)`);
     if (pctTrades.length){
-      lines.push(`Net Profit: **${net.toFixed(2)}%** (+${gainSum.toFixed(2)}% gain, ${lossSum.toFixed(2)}% loss)`);
+      lines.push(`Net Profit: **${net>0?'+':''}${net.toFixed(2)}%** (+${gainSum.toFixed(2)}% gain, ${lossSum.toFixed(2)}% loss)`);
     }
     if (futuresByRoot.size === 1){
       const [root, list] = [...futuresByRoot.entries()][0];
