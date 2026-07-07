@@ -213,26 +213,28 @@
   // position carries openPosition (the position being closed, incl. its true
   // avgEntryPrice) and exitQuote (the live bid/ask/mark at signal time).
   //
-  // Exit price, in order of preference:
+  // Exit price for a reconstructed trade:
   //   1. exitOrder.filledAvgPrice — the actual fill, when it was backfilled
-  //   2. LIMIT order  -> exitQuote.mark  (midpoint)
-  //   3. MARKET order -> sell hits the bid, buy lifts the ask (cross the spread)
+  //   2. otherwise estimate halfway between the adverse side and the midpoint:
+  //        (bid + mid) / 2 for a sell exit, (ask + mid) / 2 for a buy exit
+  //        — i.e. a quarter of the spread in from the touch.
   // Returns { price, estimated } or null.
   function estimateExitPrice(xo, eq){
     const fill = xo ? parseFloat(xo.filledAvgPrice) : NaN;
     if (isFinite(fill) && fill !== 0) return { price: fill, estimated: false };
     if (!eq) return null;
-    const type = norm(xo && xo.type);
-    const side = norm(xo && xo.side);
-    let v;
-    if (type === 'limit'){
-      v = eq.mark != null ? eq.mark : eq.last;
-    } else { // market (default)
-      v = side === 'sell' ? eq.bid : eq.ask;
-      if (v == null) v = eq.mark != null ? eq.mark : eq.last;
+
+    let mid = parseFloat(eq.mark);
+    if (!isFinite(mid)){
+      const b = parseFloat(eq.bid), a = parseFloat(eq.ask);
+      mid = (isFinite(b) && isFinite(a)) ? (b + a) / 2 : parseFloat(eq.last);
     }
-    const price = parseFloat(v);
-    return isFinite(price) ? { price, estimated: true } : null;
+    if (!isFinite(mid)) return null;
+
+    const side = norm(xo && xo.side);
+    const adverse = parseFloat(side === 'buy' ? eq.ask : eq.bid);
+    const price = isFinite(adverse) ? (adverse + mid) / 2 : mid;
+    return { price, estimated: true };
   }
 
   // A closed trade = an exit row that was closing a real position.
@@ -246,11 +248,12 @@
     if (DEAD_STATUSES.has(norm(xo.status))) return null;   // cancelled/rejected exit — never filled
 
     const entryPrice = parseFloat(op.avgEntryPrice);
+    if (!isFinite(entryPrice) || entryPrice === 0) return null;
+    const isShort = norm(op.side) === 'short';
     const est = estimateExitPrice(xo, eq);
-    if (!est || !isFinite(entryPrice) || entryPrice === 0) return null;
+    if (!est) return null;
     const exitPrice = est.price;
 
-    const isShort = norm(op.side) === 'short';
     const symbol  = op.symbol || xo.symbol;
     const root = futuresRoot(symbol);
     const isFutures = !!root;
