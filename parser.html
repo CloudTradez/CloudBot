@@ -144,6 +144,7 @@
 <script>
 (function(){
   let RAW_ROWS = [];
+  let FORMAT = null; // 'trades' | 'orders'
 
   const fileInput = document.getElementById('fileInput');
   const statusEl = document.getElementById('status');
@@ -163,6 +164,14 @@
     if (e.target.files.length) handleFile(e.target.files[0]);
   });
 
+  // TradersPost has (at least) two different CSV exports that this tool
+  // can read: the "Trades" export (one row per closed trade, with a
+  // pre-computed Trade Result JSON blob) and the "Orders" export (one row
+  // per raw order fill, no P&L pre-computed — has to be reconstructed by
+  // pairing entry/exit legs). Detect which one was uploaded from headers.
+  const TRADES_REQUIRED = ['Created At','Strategy Subscription UUID','Strategy Subscription Name','Signal Payload','Ticker Name','Status','Trade Result'];
+  const ORDERS_REQUIRED = ['Filled At','Symbol','Asset Class','Filled Qty','Filled Avg Price','Side','Instruction','Status'];
+
   function handleFile(file){
     if (!/\.csv$/i.test(file.name)){
       setStatus('Please upload a .csv file.', 'err');
@@ -171,20 +180,63 @@
     setStatus('Parsing…');
     Papa.parse(file, {
       header: true,
-      skipEmptyLines: true,
+      skipEmptyLines: 'greedy',
+      // Strip a UTF-8 BOM and stray whitespace from header names — some
+      // export tools prepend a BOM to the first column, which silently
+      // breaks the "missing columns" check below (\uFEFFUUID !== UUID).
+      transformHeader: h => h.replace(/^\uFEFF/, '').trim(),
       complete: function(results){
         if (!results.data.length){
           setStatus('That CSV has no rows.', 'err');
           return;
         }
-        const required = ['Created At','Strategy Subscription UUID','Strategy Subscription Name','Signal Payload','Ticker Name','Status','Trade Result'];
         const headers = results.meta.fields || [];
-        const missing = required.filter(h => !headers.includes(h));
-        if (missing.length){
-          setStatus('This CSV is missing expected columns: ' + missing.join(', '), 'err');
+        const missingTrades = TRADES_REQUIRED.filter(h => !headers.includes(h));
+        const missingOrders = ORDERS_REQUIRED.filter(h => !headers.includes(h));
+
+        if (!missingTrades.length) FORMAT = 'trades';
+        else if (!missingOrders.length) FORMAT = 'orders';
+        else {
+          setStatus(
+            "This CSV doesn't match either supported TradersPost export. " +
+            'Trades export is missing: ' + missingTrades.join(', ') + '. ' +
+            'Orders export is missing: ' + missingOrders.join(', ') + '.',
+            'err'
+          );
           return;
         }
-        RAW_ROWS = results.data;
+
+        // Row-level malformations PapaParse detected (wrong field count, etc).
+        const rowErrors = results.errors || [];
+
+        // Dedupe by the row's unique ID column — overlapping export date
+        // ranges can produce the same row twice, which would double-count
+        // a trade in the recap.
+        const idCol = FORMAT === 'trades' ? 'UUID' : 'Order ID';
+        const seenId = new Set();
+        let duplicateCount = 0;
+        const deduped = [];
+        results.data.forEach(row => {
+          const id = row[idCol];
+          if (id && seenId.has(id)){ duplicateCount++; return; }
+          if (id) seenId.add(id);
+          deduped.push(row);
+        });
+
+        RAW_ROWS = deduped;
+
+        // Diagnostic detail stays in the console — the user just needs to
+        // know it loaded, not the mechanics of what got filtered out.
+        let unparseableCount = 0;
+        if (FORMAT === 'trades'){
+          RAW_ROWS.forEach(row => {
+            if (row['Trade Result'] && safeParseJSON(row['Trade Result']) === null) unparseableCount++;
+          });
+        }
+        if (duplicateCount) console.log(`Skipped ${duplicateCount} duplicate row(s).`);
+        if (rowErrors.length) console.log(`${rowErrors.length} row(s) had CSV formatting issues.`, rowErrors);
+        if (unparseableCount) console.log(`${unparseableCount} row(s) had corrupted Trade Result data and were skipped.`);
+
         setStatus(`Loaded ${RAW_ROWS.length} rows.`, 'ok');
         buildOptionsUI();
       },
@@ -199,12 +251,65 @@
   }
 
   function safeParseJSON(s){
-    try { return JSON.parse(s); } catch(e){ return null; }
+    if (!s) return null;
+    try { return JSON.parse(s); } catch(e){}
+
+    // Repair 1: TradersPost's export occasionally embeds an un-substituted
+    // template tag (e.g. `\{{ subscriptionEditUrl }}`) inside a human-
+    // readable "message" string, producing an invalid JSON escape (\{ is
+    // not a legal escape). Fix any backslash not followed by a valid JSON
+    // escape character.
+    const escapeFixed = s.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+    try { return JSON.parse(escapeFixed); } catch(e){}
+
+    // Repair 2: the same free-form "messages" text can also come through
+    // with a stray extra quote or a truncated tail, breaking JSON
+    // structure beyond what a regex can safely patch. "messages" is
+    // decorative UI copy — nothing in this tool reads it — so if we still
+    // can't parse, cut the string at ,"messages": and re-close the JSON
+    // using the brace/bracket depth counted up to that point (safe here:
+    // everything before "messages" in TradersPost's schema is machine-
+    // generated structured JSON with no free-form text).
+    for (const candidate of [s, escapeFixed]){
+      const idx = candidate.indexOf(',"messages":');
+      if (idx === -1) continue;
+      const truncated = candidate.slice(0, idx);
+      let depth = 0, inStr = false, esc = false;
+      for (const ch of truncated){
+        if (esc){ esc = false; continue; }
+        if (ch === '\\'){ esc = true; continue; }
+        if (ch === '"'){ inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (ch === '{' || ch === '[') depth++;
+        else if (ch === '}' || ch === ']') depth--;
+      }
+      if (depth <= 0) continue;
+      try { return JSON.parse(truncated + '}'.repeat(depth)); } catch(e){}
+    }
+    return null;
   }
 
   // Exit statuses that mean the order never filled. Because the export isn't
   // backfilled, a still-working exit shows "open" now but will resolve to one
   // of these (didn't fill) or "executed"/"filled" (did) on a later export.
+
+  // TradersPost doesn't always populate a futures contract's pointValue
+  // (dollars per 1.00-point move). When it's missing, fall back to the
+  // standard CME multiplier by root symbol rather than silently reporting
+  // $0/BE. This is a best-effort default, not TradersPost's own data —
+  // trades that use it are flagged via pointValueEstimated.
+  const FALLBACK_POINT_VALUES = {
+    ES: 50, MES: 5,
+    NQ: 20, MNQ: 2,
+    YM: 5,  MYM: 0.5,
+    RTY: 50, M2K: 5,
+    GC: 100, MGC: 10,
+    SI: 5000, SIL: 1000,
+    CL: 1000, MCL: 100,
+    NG: 10000, QG: 2500,
+    ZB: 1000, ZN: 1000, ZF: 1000, ZT: 2000,
+  };
+
   const DEAD_STATUSES = new Set(['canceled','cancelled','rejected','failed','expired']);
 
   // The TradersPost export is NOT backfilled: an exit order can still say
@@ -257,7 +362,18 @@
     const symbol  = op.symbol || xo.symbol;
     const assetClass = norm(op.assetClass);
     const isFutures = assetClass === 'future' || assetClass === 'futures';
-    const multiplier = parseFloat(op.pointValue);   // $ per point, per contract
+    let multiplier = parseFloat(op.pointValue);   // $ per point, per contract
+    let pointValueEstimated = false;
+    if (isFutures && !isFinite(multiplier)){
+      // TradersPost doesn't always populate pointValue for every futures
+      // feed. Fall back to the standard CME contract multiplier by root
+      // symbol so the dollar P&L isn't silently reported as $0/BE.
+      const root = futuresTicker(symbol);
+      if (FALLBACK_POINT_VALUES[root] != null){
+        multiplier = FALLBACK_POINT_VALUES[root];
+        pointValueEstimated = true;
+      }
+    }
 
     const pointDiff  = isShort ? (entryPrice - exitPrice) : (exitPrice - entryPrice);
     const dollarDiff = (isFutures && isFinite(multiplier)) ? pointDiff * multiplier : null;
@@ -270,7 +386,7 @@
       : parseContract(symbol);
     const exitTime = (xo.filledAt) || (eq && eq.updatedAt) || row['Created At'];
 
-    return { contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, estimated: est.estimated, exitTime };
+    return { contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, estimated: est.estimated, pointValueEstimated, exitTime };
   }
 
   function countClosedTrades(subRows){
@@ -279,7 +395,134 @@
     return count;
   }
 
+  const OPEN_INSTRUCTIONS = new Set(['buy_to_open','sell_to_open']);
+  const CLOSE_INSTRUCTIONS = new Set(['sell_to_close','buy_to_close']);
+
+  // The Orders export has no pre-computed P&L — each row is just one fill
+  // (an open or a close). Reconstruct trades by pairing closes with the
+  // earliest still-open lot(s) of the same symbol (FIFO), same side.
+  // Handles partial fills: a close can consume multiple open lots, or only
+  // part of one, and the leftover on either side is reported rather than
+  // silently mismatched.
+  function extractTradesFromOrders(rows){
+    const filled = rows.filter(r => norm(r['Status']) === 'filled');
+
+    const bySymbol = new Map();
+    filled.forEach(r => {
+      const sym = r['Symbol'];
+      if (!sym) return;
+      if (!bySymbol.has(sym)) bySymbol.set(sym, []);
+      bySymbol.get(sym).push(r);
+    });
+
+    const trades = [];
+    let orphanExitQty = 0;
+    let stillOpenQty = 0;
+    let unrecognizedRows = 0;
+
+    bySymbol.forEach(symRows => {
+      symRows.sort((a, b) => {
+        const ta = a['Filled At'] || '', tb = b['Filled At'] || '';
+        return ta < tb ? -1 : ta > tb ? 1 : 0;
+      });
+
+      const longQueue = [];  // opened via buy_to_open
+      const shortQueue = []; // opened via sell_to_open
+
+      symRows.forEach(row => {
+        const instruction = norm(row['Instruction']);
+        const qty = parseFloat(row['Filled Qty']);
+        const price = parseFloat(row['Filled Avg Price']);
+        if (!isFinite(qty) || qty <= 0 || !isFinite(price)){ unrecognizedRows++; return; }
+
+        if (instruction === 'buy_to_open'){
+          longQueue.push({ qty, price, filledAt: row['Filled At'] });
+          return;
+        }
+        if (instruction === 'sell_to_open'){
+          shortQueue.push({ qty, price, filledAt: row['Filled At'] });
+          return;
+        }
+        if (!CLOSE_INSTRUCTIONS.has(instruction)){ unrecognizedRows++; return; }
+
+        const isShortClose = instruction === 'buy_to_close';
+        const queue = isShortClose ? shortQueue : longQueue;
+
+        let remaining = qty;
+        let matchedQty = 0, matchedValue = 0;
+        while (remaining > 0.0000001 && queue.length){
+          const lot = queue[0];
+          const take = Math.min(lot.qty, remaining);
+          matchedQty += take;
+          matchedValue += take * lot.price;
+          lot.qty -= take;
+          remaining -= take;
+          if (lot.qty <= 0.0000001) queue.shift();
+        }
+
+        if (matchedQty <= 0.0000001){ orphanExitQty += qty; return; }
+        if (remaining > 0.0000001) orphanExitQty += remaining;
+
+        const entryPrice = matchedValue / matchedQty;
+        const exitPrice = price;
+        const symbol = row['Symbol'];
+        const assetClass = norm(row['Asset Class']);
+        const isFutures = assetClass === 'future' || assetClass === 'futures';
+
+        const contract = isFutures
+          ? { ticker: futuresTicker(symbol), strike: null, type: null, isFutures: true }
+          : parseContract(symbol);
+
+        let multiplier = parseFloat(row['Point Value']);
+        let pointValueEstimated = false;
+        if (isFutures && !isFinite(multiplier)){
+          const root = contract.ticker;
+          if (FALLBACK_POINT_VALUES[root] != null){
+            multiplier = FALLBACK_POINT_VALUES[root];
+            pointValueEstimated = true;
+          }
+        }
+
+        const pointDiff = isShortClose ? (entryPrice - exitPrice) : (exitPrice - entryPrice);
+        const dollarDiff = (isFutures && isFinite(multiplier)) ? pointDiff * multiplier : null;
+        const pct = isShortClose ? ((entryPrice - exitPrice) / entryPrice) * 100
+                                  : ((exitPrice - entryPrice) / entryPrice) * 100;
+        if (!isFinite(pct) || (isFutures && exitPrice === 0)) return;
+
+        trades.push({ contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, estimated: false, pointValueEstimated, exitTime: row['Filled At'] });
+      });
+
+      longQueue.forEach(lot => stillOpenQty += lot.qty);
+      shortQueue.forEach(lot => stillOpenQty += lot.qty);
+    });
+
+    if (orphanExitQty > 0){
+      console.log(`${orphanExitQty} contract(s)/share(s) worth of closing orders had no matching opening order in this file and were left out of the recap.`);
+    }
+    if (stillOpenQty > 0){
+      console.log(`${stillOpenQty} contract(s)/share(s) worth of positions are still open as of this file and aren't included as closed trades.`);
+    }
+    if (unrecognizedRows){
+      console.log(`${unrecognizedRows} row(s) had an unrecognized or missing Instruction/quantity/price and were skipped.`);
+    }
+
+    return { trades };
+  }
+
   function buildOptionsUI(){
+    if (FORMAT === 'orders'){
+      subFilter.innerHTML = '';
+      const allOption = document.createElement('option');
+      allOption.value = '__ALL__'; allOption.textContent = 'All trades';
+      subFilter.appendChild(allOption);
+      subFilter.value = '__ALL__';
+      subFilter.disabled = true;
+      mapCard.style.display = 'block';
+      outputCard.style.display = 'none';
+      return;
+    }
+    subFilter.disabled = false;
+
     const subs = new Map();
     RAW_ROWS.forEach(r => {
       const uuid = r['Strategy Subscription UUID'];
@@ -375,6 +618,12 @@
   document.getElementById('generateBtn').addEventListener('click', generate);
 
   function generate(){
+    if (FORMAT === 'orders'){
+      const { trades } = extractTradesFromOrders(RAW_ROWS);
+      renderRecap(trades);
+      return;
+    }
+
     const subUuid = subFilter.value;
     const rows = RAW_ROWS
       .filter(r => subUuid === '__ALL__' || r['Strategy Subscription UUID'] === subUuid)
@@ -388,7 +637,6 @@
     const didNotFill = [];
     const seenDNF = new Set();
     const trades = [];
-    const dateCounts = new Map();
     let hasLive = false;
 
     rows.forEach(row => {
@@ -401,11 +649,7 @@
 
       // Closed trade, reconstructed from the exit row (fill or quote estimate).
       const trade = extractExitTrade(row);
-      if (trade){
-        trades.push(trade);
-        const d = dateOnly(trade.exitTime);
-        if (d) dateCounts.set(d, (dateCounts.get(d) || 0) + 1);
-      }
+      if (trade) trades.push(trade);
 
       // Orders sent but never filled — identified by a cancelled/rejected/etc.
       // status on the entry or exit order (the reliable "did not fill" signal),
@@ -419,7 +663,25 @@
       }
     });
 
-    trades.sort((a,b) => (b.isFutures ? b.dollarDiff : b.pct) - (a.isFutures ? a.dollarDiff : a.pct));
+    renderRecap(trades);
+  }
+
+  // Shared rendering for both export formats: takes a flat array of
+  // { contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff,
+  //   isFutures, estimated, exitTime } trade objects and builds the recap.
+  function renderRecap(trades){
+    trades = trades.slice().sort((a,b) => (b.isFutures ? b.dollarDiff : b.pct) - (a.isFutures ? a.dollarDiff : a.pct));
+
+    const estimatedPointValueCount = trades.filter(t => t.pointValueEstimated).length;
+    if (estimatedPointValueCount){
+      console.log(`${estimatedPointValueCount} futures trade(s) used a fallback CME contract multiplier (TradersPost didn't supply one).`);
+    }
+
+    const dateCounts = new Map();
+    trades.forEach(t => {
+      const d = dateOnly(t.exitTime);
+      if (d) dateCounts.set(d, (dateCounts.get(d) || 0) + 1);
+    });
 
     const wins = trades.filter(t => t.pct >= -0.005).length;
     const losses = trades.length - wins;
