@@ -727,7 +727,7 @@
       const [root, list] = [...futuresByRoot.entries()][0];
       const g = list.filter(t=>t.dollarDiff>0).reduce((s,t)=>s+t.dollarDiff,0);
       const l = list.filter(t=>t.dollarDiff<0).reduce((s,t)=>s+t.dollarDiff,0);
-      lines.push(`Net Profit: ${money(g+l)} per contract (${money(g)} gain, ${money(l)} loss)`);
+      lines.push(`Net Profit: **${money(g+l)}** per contract (${money(g)} gain, ${money(l)} loss)`);
     } else if (futuresByRoot.size > 1){
       futuresByRoot.forEach((list, root) => {
         const g = list.filter(t=>t.dollarDiff>0).reduce((s,t)=>s+t.dollarDiff,0);
@@ -736,7 +736,7 @@
       });
       const allG = futuresTrades.filter(t=>t.dollarDiff>0).reduce((s,t)=>s+t.dollarDiff,0);
       const allL = futuresTrades.filter(t=>t.dollarDiff<0).reduce((s,t)=>s+t.dollarDiff,0);
-      lines.push(`Net Profit (All): ${money(allG+allL)} per contract (${money(allG)} gain, ${money(allL)} loss)`);
+      lines.push(`Net Profit (All): **${money(allG+allL)}** per contract (${money(allG)} gain, ${money(allL)} loss)`);
     }
 
     outputBlock.textContent = lines.join('\n');
