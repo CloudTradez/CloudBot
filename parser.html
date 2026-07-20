@@ -386,13 +386,20 @@
       : parseContract(symbol);
     const exitTime = (xo.filledAt) || (eq && eq.updatedAt) || row['Created At'];
 
-    return { contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, estimated: est.estimated, pointValueEstimated, exitTime };
+    return { contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, isShort, estimated: est.estimated, pointValueEstimated, exitTime };
   }
 
-  function countClosedTrades(subRows){
-    let count = 0;
-    subRows.forEach(row => { if (extractExitTrade(row)) count++; });
-    return count;
+  // Per-subscription gain summary used to pick the default subscription:
+  // options net % and futures net $ (reusing the same reconstruction as the
+  // recap). nOpt/nFut let the caller classify an account and "prefer options".
+  function subGain(subRows){
+    const opt = [], fut = [];
+    subRows.forEach(row => { const t = extractExitTrade(row); if (t) (t.isFutures ? fut : opt).push(t); });
+    return {
+      nOpt: opt.length, nFut: fut.length,
+      optNet: opt.reduce((s,t) => s + t.pct, 0),
+      futNet: fut.reduce((s,t) => s + (t.dollarDiff || 0), 0),
+    };
   }
 
   const OPEN_INSTRUCTIONS = new Set(['buy_to_open','sell_to_open']);
@@ -489,7 +496,7 @@
                                   : ((exitPrice - entryPrice) / entryPrice) * 100;
         if (!isFinite(pct) || (isFutures && exitPrice === 0)) return;
 
-        trades.push({ contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, estimated: false, pointValueEstimated, exitTime: row['Filled At'] });
+        trades.push({ contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, isShort: isShortClose, estimated: false, pointValueEstimated, exitTime: row['Filled At'] });
       });
 
       longQueue.forEach(lot => stillOpenQty += lot.qty);
@@ -543,7 +550,11 @@
     });
 
     subFilter.innerHTML = '';
-    let bestUuid = null, bestCount = 0;
+    // Default to the subscription with the highest gain: net % for accounts
+    // that trade options, net $ for futures-only accounts. An account holding
+    // options is ranked by its options % and outranks a futures-only account
+    // ("prefer options"). best = { uuid, kind:'opt'|'fut', metric }.
+    let best = null;
     const seenLabelIndex = new Map();
     subs.forEach((info, uuid) => {
       let label = info.name;
@@ -560,15 +571,21 @@
       o.value = uuid; o.textContent = label;
       subFilter.appendChild(o);
 
-      const tradeCount = countClosedTrades(RAW_ROWS.filter(r => r['Strategy Subscription UUID'] === uuid));
-      if (tradeCount > bestCount){ bestCount = tradeCount; bestUuid = uuid; }
+      const g = subGain(RAW_ROWS.filter(r => r['Strategy Subscription UUID'] === uuid));
+      const cand = g.nOpt > 0 ? { uuid, kind:'opt', metric:g.optNet }
+                 : g.nFut > 0 ? { uuid, kind:'fut', metric:g.futNet } : null;
+      if (cand){
+        if (!best
+            || (cand.kind === best.kind && cand.metric > best.metric)
+            || (cand.kind === 'opt' && best.kind === 'fut')) best = cand;
+      }
     });
 
     const allOption = document.createElement('option');
     allOption.value = '__ALL__'; allOption.textContent = 'All trades';
     subFilter.appendChild(allOption);
 
-    subFilter.value = bestUuid || '__ALL__';
+    subFilter.value = (best && best.uuid) || '__ALL__';
 
     mapCard.style.display = 'block';
     outputCard.style.display = 'none';
@@ -715,7 +732,8 @@
       } else {
         valStr = Math.abs(t.pct) < 0.005 ? 'BE' : `${t.pct>0?'+':''}${t.pct.toFixed(2)}%`;
       }
-      lines.push(`${i+1}. ${emoji} ${contractDisplay(t.contract)} @ $${t.entryPrice.toFixed(2)} -> $${t.exitPrice.toFixed(2)} (${valStr})`);
+      const dirLabel = t.isFutures ? (t.isShort ? ' Short' : ' Long') : '';
+      lines.push(`${i+1}. ${emoji} ${contractDisplay(t.contract)}${dirLabel} @ $${t.entryPrice.toFixed(2)} -> $${t.exitPrice.toFixed(2)} (${valStr})`);
     });
     lines.push('');
     // "Did not fill" line hidden for now (both live and paper).
