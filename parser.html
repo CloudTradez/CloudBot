@@ -123,7 +123,7 @@
   <div id="status"></div>
 
   <div id="mapCard">
-    <h2>Options and Futures</h2>
+    <h2>Options, Stocks and Futures</h2>
 
     <label for="subFilter">Strategy subscription</label>
     <select id="subFilter"></select>
@@ -298,6 +298,10 @@
   // standard CME multiplier by root symbol rather than silently reporting
   // $0/BE. This is a best-effort default, not TradersPost's own data —
   // trades that use it are flagged via pointValueEstimated.
+  // Stock net profit is reported "per contract" — a fixed display convention
+  // of 100× the per-share P&L (100 shares; each stock trade is a 1-share unit).
+  const SHARES_PER_CONTRACT = 100;
+
   const FALLBACK_POINT_VALUES = {
     ES: 50, MES: 5,
     NQ: 20, MNQ: 2,
@@ -384,20 +388,28 @@
     const contract = isFutures
       ? { ticker: futuresTicker(symbol), strike: null, type: null, isFutures: true }
       : parseContract(symbol);
+    // A non-futures trade with no OCC option contract (strike + type) is a
+    // stock — its P&L is reported per share ($), not as premium %.
+    const isStock = !isFutures && !(contract.type && contract.strike);
     const exitTime = (xo.filledAt) || (eq && eq.updatedAt) || row['Created At'];
 
-    return { contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, isShort, estimated: est.estimated, pointValueEstimated, exitTime };
+    return { contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, isStock, isShort, estimated: est.estimated, pointValueEstimated, exitTime };
   }
 
   // Per-subscription gain summary used to pick the default subscription:
   // options net % and futures net $ (reusing the same reconstruction as the
   // recap). nOpt/nFut let the caller classify an account and "prefer options".
   function subGain(subRows){
-    const opt = [], fut = [];
-    subRows.forEach(row => { const t = extractExitTrade(row); if (t) (t.isFutures ? fut : opt).push(t); });
+    const opt = [], stock = [], fut = [];
+    subRows.forEach(row => {
+      const t = extractExitTrade(row);
+      if (!t) return;
+      (t.isFutures ? fut : t.isStock ? stock : opt).push(t);
+    });
     return {
-      nOpt: opt.length, nFut: fut.length,
+      nOpt: opt.length, nStock: stock.length, nFut: fut.length,
       optNet: opt.reduce((s,t) => s + t.pct, 0),
+      stockNet: stock.reduce((s,t) => s + (t.pointDiff || 0), 0),
       futNet: fut.reduce((s,t) => s + (t.dollarDiff || 0), 0),
     };
   }
@@ -479,6 +491,7 @@
         const contract = isFutures
           ? { ticker: futuresTicker(symbol), strike: null, type: null, isFutures: true }
           : parseContract(symbol);
+        const isStock = !isFutures && !(contract.type && contract.strike);
 
         let multiplier = parseFloat(row['Point Value']);
         let pointValueEstimated = false;
@@ -496,7 +509,7 @@
                                   : ((exitPrice - entryPrice) / entryPrice) * 100;
         if (!isFinite(pct) || (isFutures && exitPrice === 0)) return;
 
-        trades.push({ contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, isShort: isShortClose, estimated: false, pointValueEstimated, exitTime: row['Filled At'] });
+        trades.push({ contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff, isFutures, isStock, isShort: isShortClose, estimated: false, pointValueEstimated, exitTime: row['Filled At'] });
       });
 
       longQueue.forEach(lot => stillOpenQty += lot.qty);
@@ -551,9 +564,11 @@
 
     subFilter.innerHTML = '';
     // Default to the subscription with the highest gain: net % for accounts
-    // that trade options, net $ for futures-only accounts. An account holding
-    // options is ranked by its options % and outranks a futures-only account
-    // ("prefer options"). best = { uuid, kind:'opt'|'fut', metric }.
+    // that trade options, net $ per share for stocks, net $ per contract for
+    // futures-only accounts. Kinds are prioritized options > stock > futures
+    // so a mixed account is ranked by its options; within one kind the higher
+    // metric wins. best = { uuid, kind:'opt'|'stock'|'fut', metric }.
+    const KIND_RANK = { opt: 3, stock: 2, fut: 1 };
     let best = null;
     const seenLabelIndex = new Map();
     subs.forEach((info, uuid) => {
@@ -573,11 +588,12 @@
 
       const g = subGain(RAW_ROWS.filter(r => r['Strategy Subscription UUID'] === uuid));
       const cand = g.nOpt > 0 ? { uuid, kind:'opt', metric:g.optNet }
+                 : g.nStock > 0 ? { uuid, kind:'stock', metric:g.stockNet }
                  : g.nFut > 0 ? { uuid, kind:'fut', metric:g.futNet } : null;
       if (cand){
         if (!best
-            || (cand.kind === best.kind && cand.metric > best.metric)
-            || (cand.kind === 'opt' && best.kind === 'fut')) best = cand;
+            || KIND_RANK[cand.kind] > KIND_RANK[best.kind]
+            || (cand.kind === best.kind && cand.metric > best.metric)) best = cand;
       }
     });
 
@@ -687,7 +703,10 @@
   // { contract, entryPrice, exitPrice, pct, pointDiff, dollarDiff,
   //   isFutures, estimated, exitTime } trade objects and builds the recap.
   function renderRecap(trades){
-    trades = trades.slice().sort((a,b) => (b.isFutures ? b.dollarDiff : b.pct) - (a.isFutures ? a.dollarDiff : a.pct));
+    // The ranked/emoji value per trade: $ per contract (futures), $ per share
+    // (stocks), or premium % (options).
+    const metricOf = t => t.isFutures ? t.dollarDiff : t.isStock ? t.pointDiff : t.pct;
+    trades = trades.slice().sort((a,b) => metricOf(b) - metricOf(a));
 
     const estimatedPointValueCount = trades.filter(t => t.pointValueEstimated).length;
     if (estimatedPointValueCount){
@@ -700,9 +719,9 @@
       if (d) dateCounts.set(d, (dateCounts.get(d) || 0) + 1);
     });
 
-    const wins = trades.filter(t => t.pct >= -0.005).length;
+    const wins = trades.filter(t => metricOf(t) >= -0.005).length;
     const losses = trades.length - wins;
-    const pctTrades = trades.filter(t => !t.isFutures);
+    const pctTrades = trades.filter(t => !t.isFutures && !t.isStock);
     const gainSum = pctTrades.filter(t=>t.pct>0).reduce((s,t)=>s+t.pct,0);
     const lossSum = pctTrades.filter(t=>t.pct<0).reduce((s,t)=>s+t.pct,0);
     const net = gainSum + lossSum;
@@ -715,6 +734,14 @@
       futuresByRoot.get(root).push(t);
     });
 
+    const stockTrades = trades.filter(t => t.isStock);
+    const stockByRoot = new Map();
+    stockTrades.forEach(t => {
+      const root = t.contract.ticker;
+      if (!stockByRoot.has(root)) stockByRoot.set(root, []);
+      stockByRoot.get(root).push(t);
+    });
+
     let recapDateStr = '';
     {
       let bestDate = null, bestCount = -1;
@@ -725,14 +752,16 @@
     const lines = [];
     lines.push(`**Cloud Bot Recap (${recapDateStr})**`);
     trades.forEach((t, i) => {
-      const emoji = (t.isFutures ? t.dollarDiff : t.pct) < -0.005 ? ':red_square:' : ':green_square:';
+      const emoji = metricOf(t) < -0.005 ? ':red_square:' : ':green_square:';
       let valStr;
       if (t.isFutures){
         valStr = Math.abs(t.dollarDiff) < 0.005 ? 'BE' : money(t.dollarDiff);
+      } else if (t.isStock){
+        valStr = Math.abs(t.pointDiff) < 0.005 ? 'BE' : money(t.pointDiff);
       } else {
         valStr = Math.abs(t.pct) < 0.005 ? 'BE' : `${t.pct>0?'+':''}${t.pct.toFixed(2)}%`;
       }
-      const dirLabel = t.isFutures ? (t.isShort ? ' Short' : ' Long') : '';
+      const dirLabel = (t.isFutures || t.isStock) ? (t.isShort ? ' Short' : ' Long') : '';
       lines.push(`${i+1}. ${emoji} ${contractDisplay(t.contract)}${dirLabel} @ $${t.entryPrice.toFixed(2)} -> $${t.exitPrice.toFixed(2)} (${valStr})`);
     });
     lines.push('');
@@ -740,6 +769,23 @@
     lines.push(`Total Trades: ${trades.length} (${wins} W, ${losses} L)`);
     if (pctTrades.length){
       lines.push(`Net Profit: **${net>0?'+':''}${net.toFixed(2)}%** (+${gainSum.toFixed(2)}% gain, ${lossSum.toFixed(2)}% loss)`);
+    }
+    // Report "per contract" only (per-share × 100).
+    const microLine = (ps, bold) => {
+      const contract = money(ps * SHARES_PER_CONTRACT);
+      return `${bold ? `**${contract}**` : contract} per contract`;
+    };
+    if (stockByRoot.size === 1){
+      const [root, list] = [...stockByRoot.entries()][0];
+      const ps = list.reduce((s,t) => s + t.pointDiff, 0);
+      lines.push(`Net Profit (${root}): ${microLine(ps, true)}`);
+    } else if (stockByRoot.size > 1){
+      [...stockByRoot.entries()]
+        .map(([root, list]) => ({ root, ps: list.reduce((s,t) => s + t.pointDiff, 0) }))
+        .sort((a,b) => b.ps - a.ps)
+        .forEach(({ root, ps }) => lines.push(`Net Profit (${root}): ${microLine(ps, false)}`));
+      const allPs = stockTrades.reduce((s,t) => s + t.pointDiff, 0);
+      lines.push(`Net Profit (All): ${microLine(allPs, true)}`);
     }
     if (futuresByRoot.size === 1){
       const [root, list] = [...futuresByRoot.entries()][0];
